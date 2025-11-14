@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 automerge = "0.7.0"
-pyo3 = "0.27.0"
+pyo3 = { version = "0.27", features = ["extension-module", "abi3-py38", "anyhow"] }
 pyo3-async-runtimes = { version = "0.27", features = ["attributes", "tokio-runtime"] }
 samod = "0.5.0"
 samod-core = "0.5.0"
