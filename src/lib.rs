@@ -121,11 +121,12 @@ impl Repo {
     ) -> PyResult<Bound<'py, PyAny>> {
         let repo = self.inner.clone();
 
-        // Parse the AutomergeUrl
-        let url: samod_core::AutomergeUrl = doc_id.parse()
-            .map_err(|e| PyValueError::new_err(format!("Invalid document ID: {}", e)))?;
+        let document_id: samod_core::DocumentId = doc_id.parse().map_err(|e| PyValueError::new_err(format!("Invalid document ID: {}", e)))?;
 
-        let document_id = url.document_id().clone();
+        // // Parse the AutomergeUrl
+        // let url: samod_core::AutomergeUrl = doc_id.parse()
+        //     .map_err(|e| PyValueError::new_err(format!("Invalid document ID: {}", e)))?;
+
 
         future_into_py(py, async move {
             let result = repo.find(document_id).await;

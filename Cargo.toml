@@ -1,6 +1,6 @@
 [package]
 name = "suture"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -9,11 +9,13 @@ name = "suture"
 crate-type = ["cdylib"]
 
 [dependencies]
+tracing = "0.1.41"
 automerge = "0.7.0"
 pyo3 = { version = "0.27", features = ["extension-module", "abi3-py38", "anyhow"] }
 pyo3-async-runtimes = { version = "0.27", features = ["attributes", "tokio-runtime"] }
-samod = "0.5.0"
+samod = { version = "0.5.0", features = ["tokio", "tungstenite"] }
 samod-core = "0.5.0"
 tokio = { version = "1.46.0", features = ["rt", "fs", "rt-multi-thread", "macros", "time"] }
-tokio-tungstenite = { version = "0.27.0", optional = true }
-tungstenite = { version = "0.27.0", optional = true }
+tokio-tungstenite = { version = "0.27.0", features = ["rustls-tls-native-roots"] }
+rustls = { version = "0.23", features = ["aws-lc-rs"] }
+tungstenite = { version = "0.27.0"}
