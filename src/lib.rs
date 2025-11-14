@@ -109,6 +109,9 @@ impl Repo {
 
             tasks.lock().await.push(handle);
 
+            // Small delay to allow initial handshake
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
             Ok(None::<Py<PyAny>>)
         })
     }
