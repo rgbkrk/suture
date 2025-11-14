@@ -402,7 +402,7 @@ impl DocHandle {
     }
 }
 
-/// Suture
+/// Spork
 ///
 /// Library for building local-first collaborative applications using
 /// Automerge CRDTs (Conflict-Free Replicated Data Types).
@@ -413,8 +413,8 @@ impl DocHandle {
 ///     - **AutomergeUrl**: Unique identifier for documents (automerge:...)
 ///
 /// See also: https://automerge.org/docs/
-#[pymodule(name = "suture")]
-fn suture_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
+#[pymodule(name = "spork")]
+fn spork_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Repo>()?;
     m.add_class::<DocHandle>()?;
     Ok(())

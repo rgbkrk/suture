@@ -1239,14 +1239,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "subtle"
-version = "2.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
-
-[[package]]
-name = "suture"
-version = "0.0.1"
+name = "spork"
+version = "2.0.0-alpha.1"
 dependencies = [
  "automerge",
  "pyo3",
@@ -1259,6 +1253,12 @@ dependencies = [
  "tracing",
  "tungstenite",
 ]
+
+[[package]]
+name = "subtle"
+version = "2.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "syn"
