@@ -9,8 +9,9 @@ name = "suture"
 crate-type = ["cdylib"]
 
 [dependencies]
+automerge = "0.7.0"
 pyo3 = "0.27.0"
-pyo3-async-runtimes = { version = "0.26", features = ["tokio-runtime"] }
+pyo3-async-runtimes = { version = "0.27", features = ["attributes", "tokio-runtime"] }
 samod = "0.5.0"
 samod-core = "0.5.0"
 tokio = { version = "1.46.0", features = ["rt-multi-thread", "macros", "time"] }
