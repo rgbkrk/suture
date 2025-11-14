@@ -121,11 +121,10 @@ impl Repo {
     ) -> PyResult<Bound<'py, PyAny>> {
         let repo = self.inner.clone();
 
-        let document_id: samod_core::DocumentId = doc_id.parse().map_err(|e| PyValueError::new_err(format!("Invalid document ID: {}", e)))?;
+        let id_str = doc_id.strip_prefix("automerge:").unwrap_or(&doc_id);
 
-        // // Parse the AutomergeUrl
-        // let url: samod_core::AutomergeUrl = doc_id.parse()
-        //     .map_err(|e| PyValueError::new_err(format!("Invalid document ID: {}", e)))?;
+        let document_id: samod_core::DocumentId = id_str.parse()
+            .map_err(|e| PyValueError::new_err(format!("Invalid document ID: {}", e)))?;
 
 
         future_into_py(py, async move {
@@ -242,6 +241,7 @@ impl DocHandle {
     ///
     /// Returns:
     ///     str: The document's ID
+    #[getter]
     fn document_id(&self) -> String {
         self.document_id.to_string()
     }
@@ -253,6 +253,7 @@ impl DocHandle {
     ///
     /// Returns:
     ///     str: The document's URL (e.g., "automerge:...")
+    #[getter]
     fn url(&self) -> String {
         format!("automerge:{}", self.document_id)
     }
