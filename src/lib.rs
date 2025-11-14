@@ -401,7 +401,298 @@ impl DocHandle {
             Ok(keys)
         })
     }
+
+    /// Create or replace a text field at the document root.
+    ///
+    /// Creates a new Automerge Text object, which supports character-level
+    /// collaborative editing operations like splice, insert, and delete.
+    ///
+    /// Args:
+    ///     key (str): The field name
+    ///     value (str): Initial text content
+    ///
+    /// Returns:
+    ///     Coroutine[Text]: A Text handle for performing operations
+    ///
+    /// Raises:
+    ///     RuntimeError: If the operation fails
+    ///
+    /// Example:
+    ///     >>> text = await doc.put_text("content", "Hello World")
+    ///     >>> await text.splice(6, 0, "Beautiful ")
+    fn put_text<'py>(
+        &self,
+        py: Python<'py>,
+        key: String,
+        value: String,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let handle = self.inner.clone();
+        let document_id = self.document_id.clone();
+
+        future_into_py(py, async move {
+            let handle = handle.lock().await;
+
+            let obj_id = handle.with_document(|doc| {
+                doc.transact(|tx| {
+                    let obj = tx.put_object(automerge::ROOT, &key, automerge::ObjType::Text)?;
+                    tx.splice_text(&obj, 0, 0, &value)?;
+                    Ok::<_, automerge::AutomergeError>(obj)
+                })
+            });
+
+            // Extract the obj from the transaction result
+            let obj_id = match obj_id {
+                Ok(success) => success.result,
+                Err(e) => return Err(PyRuntimeError::new_err(format!("Failed to create text: {}", e.error))),
+            };
+
+            Ok(Text {
+                handle: Arc::new(AsyncMutex::new(handle.clone())),
+                obj_id: Arc::new(obj_id),
+                document_id,
+            })
+        })
+    }
+
+    /// Get a text field from the document root.
+    ///
+    /// Returns a Text handle for an existing text field.
+    ///
+    /// Args:
+    ///     key (str): The field name
+    ///
+    /// Returns:
+    ///     Coroutine[Optional[Text]]: Text handle if the field exists and is a text object
+    ///
+    /// Raises:
+    ///     RuntimeError: If reading fails
+    ///
+    /// Example:
+    ///     >>> text = await doc.get_text("content")
+    ///     >>> if text:
+    ///     >>>     content = await text.get()
+    fn get_text<'py>(
+        &self,
+        py: Python<'py>,
+        key: String,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let handle = self.inner.clone();
+        let document_id = self.document_id.clone();
+
+        future_into_py(py, async move {
+            let handle = handle.lock().await;
+
+            let result = handle.with_document(|doc| {
+                match doc.get(automerge::ROOT, &key) {
+                    Ok(Some((automerge::Value::Object(automerge::ObjType::Text), obj_id))) => {
+                        Ok::<_, automerge::AutomergeError>(Some(obj_id))
+                    }
+                    Ok(_) => Ok(None),
+                    Err(e) => Err(e),
+                }
+            })
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to get text: {}", e)))?;
+
+            Ok(result.map(|obj_id| Text {
+                handle: Arc::new(AsyncMutex::new(handle.clone())),
+                obj_id: Arc::new(obj_id),
+                document_id,
+            }))
+        })
+    }
+
 }
+
+/// A handle to an Automerge Text object for collaborative text editing.
+///
+/// Text objects support character-level operations that automatically merge
+/// concurrent edits from multiple users. All position indices are based on
+/// character counts (not byte offsets), making them safe for Unicode text.
+///
+/// Example:
+///     >>> text = await doc.put_text("notes", "Hello World")
+///     >>> await text.splice(6, 0, "Beautiful ")  # Insert
+///     >>> content = await text.get()
+///     >>> print(content)  # "Hello Beautiful World"
+#[pyclass]
+struct Text {
+    handle: Arc<AsyncMutex<samod::DocHandle>>,
+    obj_id: Arc<automerge::ObjId>,
+    document_id: DocumentId,
+}
+
+
+#[pymethods]
+impl Text {
+    /// Get the current text content as a string.
+    ///
+    /// Returns:
+    ///     Coroutine[str]: The complete text content
+    ///
+    /// Raises:
+    ///     RuntimeError: If reading fails
+    fn get<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let handle = self.handle.clone();
+        let obj_id = self.obj_id.clone();
+
+        future_into_py(py, async move {
+            let handle = handle.lock().await;
+
+            let text = handle.with_document(|doc| {
+                doc.text(&*obj_id)
+            })
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to read text: {}", e)))?;
+
+            Ok(text)
+        })
+    }
+
+    /// Get the character length of the text.
+    ///
+    /// Returns:
+    ///     Coroutine[int]: Number of characters in the text
+    ///
+    /// Raises:
+    ///     RuntimeError: If reading fails
+    fn length<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let handle = self.handle.clone();
+        let obj_id = self.obj_id.clone();
+
+        future_into_py(py, async move {
+            let handle = handle.lock().await;
+
+            let len = handle.with_document(|doc| {
+                let text = doc.text(&*obj_id)?;
+                Ok::<_, automerge::AutomergeError>(text.chars().count())
+            })
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to get length: {}", e)))?;
+
+            Ok(len)
+        })
+    }
+
+    /// Splice text: insert and/or delete characters at a position.
+    ///
+    /// This is the universal text editing operation. It can insert, delete,
+    /// or replace text at any character position.
+    ///
+    /// Args:
+    ///     pos (int): Character position to start at (0-based)
+    ///     delete (int): Number of characters to delete (can be 0)
+    ///     insert (str): Text to insert (can be empty string)
+    ///
+    /// Returns:
+    ///     Coroutine: Resolves when the operation completes
+    ///
+    /// Raises:
+    ///     RuntimeError: If the operation fails
+    ///
+    /// Examples:
+    ///     >>> await text.splice(0, 0, "Hello")      # Insert at start
+    ///     >>> await text.splice(5, 0, " World")     # Insert at position 5
+    ///     >>> await text.splice(5, 6, "")           # Delete 6 chars from position 5
+    ///     >>> await text.splice(0, 5, "Hi")         # Replace first 5 chars with "Hi"
+    fn splice<'py>(
+        &self,
+        py: Python<'py>,
+        pos: usize,
+        delete: isize,
+        insert: String,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let handle = self.handle.clone();
+        let obj_id = self.obj_id.clone();
+
+        future_into_py(py, async move {
+            let handle = handle.lock().await;
+
+            handle.with_document(|doc| {
+                doc.transact(|tx| {
+                    tx.splice_text(&*obj_id, pos, delete, &insert)?;
+                    Ok::<_, automerge::AutomergeError>(())
+                }).map_err(|e| e.error)?;
+                Ok::<_, automerge::AutomergeError>(())
+            })
+            .map_err(|e| PyRuntimeError::new_err(format!("Splice failed: {}", e)))?;
+
+            Ok(None::<Py<PyAny>>)
+        })
+    }
+
+    /// Insert text at a position without deleting anything.
+    ///
+    /// Convenience method equivalent to splice(pos, 0, text).
+    ///
+    /// Args:
+    ///     pos (int): Character position to insert at
+    ///     text (str): Text to insert
+    ///
+    /// Returns:
+    ///     Coroutine: Resolves when the operation completes
+    fn insert<'py>(
+        &self,
+        py: Python<'py>,
+        pos: usize,
+        text: String,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        self.splice(py, pos, 0, text)
+    }
+
+    /// Delete characters at a position.
+    ///
+    /// Convenience method equivalent to splice(pos, length, "").
+    ///
+    /// Args:
+    ///     pos (int): Character position to start deleting from
+    ///     length (int): Number of characters to delete
+    ///
+    /// Returns:
+    ///     Coroutine: Resolves when the operation completes
+    fn delete<'py>(
+        &self,
+        py: Python<'py>,
+        pos: usize,
+        length: usize,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        self.splice(py, pos, length as isize, String::new())
+    }
+
+    /// Append text to the end.
+    ///
+    /// Args:
+    ///     text (str): Text to append
+    ///
+    /// Returns:
+    ///     Coroutine: Resolves when the operation completes
+    fn append<'py>(
+        &self,
+        py: Python<'py>,
+        text: String,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let handle = self.handle.clone();
+        let obj_id = self.obj_id.clone();
+
+        future_into_py(py, async move {
+            let handle = handle.lock().await;
+
+            handle.with_document(|doc| {
+                let len = doc.text(&*obj_id)?.chars().count();
+                doc.transact(|tx| {
+                    tx.splice_text(&*obj_id, len, 0, &text)?;
+                    Ok::<_, automerge::AutomergeError>(())
+                }).map_err(|e| e.error)?;
+                Ok::<_, automerge::AutomergeError>(())
+            })
+            .map_err(|e| PyRuntimeError::new_err(format!("Append failed: {}", e)))?;
+
+            Ok(None::<Py<PyAny>>)
+        })
+    }
+
+    fn __repr__(&self) -> String {
+        format!("Text(doc='{}')", self.document_id)
+    }
+}
+
 
 /// Spork
 ///
@@ -418,5 +709,6 @@ impl DocHandle {
 fn spork_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Repo>()?;
     m.add_class::<DocHandle>()?;
+    m.add_class::<Text>()?;
     Ok(())
 }
