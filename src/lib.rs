@@ -5,6 +5,7 @@ use samod::DocumentId;
 use std::sync::Arc;
 use tokio::sync::Mutex as AsyncMutex;
 use tokio::task::JoinHandle;
+use futures::stream::StreamExt;
 
 use automerge::{transaction::Transactable, ReadDoc};
 
@@ -504,6 +505,77 @@ impl DocHandle {
         })
     }
 
+    /// Broadcast an ephemeral message to all peers who have this document open.
+    ///
+    /// Sends a binary message to all connected peers with this document.
+    /// The message is ephemeral (not persisted to the document) and delivered
+    /// as-is to all peers.
+    ///
+    /// Note: While you can send any binary payload, for interoperability with
+    /// JavaScript implementations, messages should be valid CBOR (Concise Binary
+    /// Object Representation) encoded data.
+    ///
+    /// Args:
+    ///     message (bytes): The binary message to broadcast
+    ///
+    /// Returns:
+    ///     Coroutine: Resolves when the message has been sent
+    ///
+    /// Example:
+    ///     >>> import cbor2
+    ///     >>> # Broadcast a CBOR-encoded message
+    ///     >>> message = cbor2.dumps({"type": "cursor", "position": 42})
+    ///     >>> await doc.broadcast(message)
+    fn broadcast<'py>(
+        &self,
+        py: Python<'py>,
+        message: Vec<u8>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let handle = self.inner.clone();
+
+        future_into_py(py, async move {
+            let handle_lock = handle.lock().await;
+            handle_lock.broadcast(message);
+            Ok(None::<Py<PyAny>>)
+        })
+    }
+
+    /// Receive the next ephemeral broadcast message from other peers.
+    ///
+    /// Waits for and returns the next message broadcast by other peers
+    /// who have this document open. This is the receiving counterpart to the
+    /// broadcast() method.
+    ///
+    /// The messages are ephemeral (not persisted to the document) and delivered
+    /// as binary data. For CBOR-encoded messages, use cbor2.loads() to decode.
+    ///
+    /// This method can be called repeatedly to receive messages one at a time.
+    ///
+    /// Returns:
+    ///     Coroutine[Optional[bytes]]: The next broadcast message, or None if stream ended
+    ///
+    /// Example:
+    ///     >>> import cbor2
+    ///     >>> while True:
+    ///     >>>     message = await doc.recv_ephemera()
+    ///     >>>     if message is None:
+    ///     >>>         break
+    ///     >>>     data = cbor2.loads(message)
+    ///     >>>     print(f"Received: {data}")
+    fn recv_ephemera<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let handle = self.inner.clone();
+
+        future_into_py(py, async move {
+            let handle_guard = handle.lock().await;
+            let mut stream = handle_guard.ephemera();
+
+            match stream.next().await {
+                Some(message) => Ok(Some(message)),
+                None => Ok(None),
+            }
+        })
+    }
+
 }
 
 /// A handle to an Automerge Text object for collaborative text editing.
@@ -695,7 +767,6 @@ impl Text {
         format!("Text(doc='{}')", self.document_id)
     }
 }
-
 
 /// Spork
 ///
