@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Run as:
+# ```
+# uv run --with ./target/wheels/spork-*.whl demo/bot.py
+# ```
 # /// script
 # requires-python = ">=3.8"
 # dependencies = [
