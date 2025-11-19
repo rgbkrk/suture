@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # /// script
+# requires-python = ">=3.8"
 # dependencies = [
 #   "openai>=1.0.0",
 #   "cbor2>=5.0.0",
-#   "spork @ file:///Users/kylekelley/conductor/suture/.conductor/krakow",
 # ]
 # ///
 """

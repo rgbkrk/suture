@@ -1,0 +1,9 @@
+[tool.uv]
+default-groups = ["dev"]
+
+[dependency-groups]
+dev = [
+  "spork @ { path = '..' }",
+  "openai>=1.0.0",
+  "cbor2>=5.0.0",
+]
