@@ -82,9 +82,6 @@ Spork uses:
 - Python ≥ 3.8
 - Rust (for building from source)
 
-## License
-
-MIT
 
 ## Resources
 
@@ -98,25 +95,25 @@ Contributions welcome! See examples and tests for patterns.
 
 ## Demo
 
-Check out the [`demo/`](./demo) directory for a complete example application featuring:
+Check out the [`demo/`](./demo) directory for an example of a realtime document with an agentic text editor:
 - **CodeMirror frontend** with real-time cursor tracking
-- **Python MCP server** for LLM-driven text editing
-- **Language-first editing** using regex patterns instead of character-by-character operations
-
-See [DEMO.md](./DEMO.md) for full documentation.
+- **AI Collaborator** edits the document alongside you
 
 Quick start:
 ```bash
-# Build Spork
-maturin develop
-
-# Start frontend
+# Start frontend in one terminal
 cd demo && npm install && npm run dev
 
-# In another terminal, run MCP server
-cd mcp-server && pip install -e . && python server.py
+# In another terminal, build spork and start the demo bot with your automerge URL from above
+maturin develop
+uv run --with ./target/wheels/spork-*.whl demo/bot.py "automerge:j1khGXyZuHf5tgb5EKoAGdUGHuN"
 ```
 
 ## Status
 
 ⚠️ **Alpha**: API may change. Suitable for experimentation and prototyping. Come contribute to the design!
+
+
+## License
+
+MIT
