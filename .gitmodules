@@ -1,0 +1,15 @@
+[submodule "reference/automerge-ssm"]
+	path = reference/automerge-ssm
+	url = https://github.com/rgbkrk/automerge-ssm
+[submodule "reference/samod"]
+	path = reference/samod
+	url = https://github.com/alexjg/samod
+[submodule "reference/automerge"]
+	path = reference/automerge
+	url = https://github.com/automerge/automerge
+[submodule "reference/automerge.github.io"]
+	path = reference/automerge.github.io
+	url = https://github.com/automerge/automerge.github.io
+[submodule "reference/automerge-codemirror"]
+	path = reference/automerge-codemirror
+	url = https://github.com/automerge/automerge-codemirror
