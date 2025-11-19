@@ -96,6 +96,27 @@ MIT
 
 Contributions welcome! See examples and tests for patterns.
 
+## Demo
+
+Check out the [`demo/`](./demo) directory for a complete example application featuring:
+- **CodeMirror frontend** with real-time cursor tracking
+- **Python MCP server** for LLM-driven text editing
+- **Language-first editing** using regex patterns instead of character-by-character operations
+
+See [DEMO.md](./DEMO.md) for full documentation.
+
+Quick start:
+```bash
+# Build Spork
+maturin develop
+
+# Start frontend
+cd demo && npm install && npm run dev
+
+# In another terminal, run MCP server
+cd mcp-server && pip install -e . && python server.py
+```
+
 ## Status
 
 ⚠️ **Alpha**: API may change. Suitable for experimentation and prototyping. Come contribute to the design!

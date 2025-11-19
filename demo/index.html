@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Automerge CodeMirror Demo</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #1e1e1e;
+      color: #fff;
+    }
+
+    #app {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    #doc-id {
+      font-family: monospace;
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 20px;
+    }
+
+    #editor-container {
+      height: 600px;
+      border: 1px solid #444;
+      border-radius: 4px;
+      overflow: hidden;
+      background: #1e1e1e;
+    }
+
+    .cm-editor {
+      height: 100%;
+      font-size: 16px;
+    }
+
+    .cm-scroller {
+      overflow: auto;
+    }
+
+    #cursors {
+      margin-top: 20px;
+      padding: 10px;
+      background: #2a2a2a;
+      border-radius: 4px;
+    }
+
+    .cursor-info {
+      display: inline-block;
+      margin-right: 20px;
+      padding: 5px 10px;
+      border-radius: 3px;
+      font-size: 12px;
+    }
+
+    #status {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>Collaborative Text Editor</h1>
+    <div id="doc-id"></div>
+    <div id="status">Initializing...</div>
+    <div id="editor-container"></div>
+    <div id="cursors">
+      <strong>Active Cursors:</strong>
+      <div id="cursor-list"></div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
