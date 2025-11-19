@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
+# Run as:
+# ```
+# uv run --with ./target/wheels/spork-*.whl demo/bot.py
+# ```
 # /// script
+# requires-python = ">=3.8"
 # dependencies = [
 #   "openai>=1.0.0",
 #   "cbor2>=5.0.0",
-#   "spork @ file:///Users/kylekelley/conductor/suture/.conductor/krakow",
 # ]
 # ///
 """
