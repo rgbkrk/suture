@@ -59,12 +59,15 @@ async def test_ephemera_stream():
 
     # Note: To fully test receiving, we'd need two connected repos
     # The stream will work when there are actual messages to receive
-
-    print("\n✓ All basic tests passed!")
-    print("\nThe EphemeraStream now supports pythonic iteration:")
-    print("  async for message in doc.ephemera():")
-    print("      data = cbor2.loads(message)")
-    print("      print(data)")
+    #
+    # TODO: Test calling doc.ephemera() like:
+    # ```
+    # async for message in doc.ephemera():
+    #     data = cbor2.loads(message)
+    #     assert data["type"] == "test"
+    #     assert data["data"] == "Hello, World!"
+    # ```
+    # Note that we'll want to just get the first message then finish
 
     # Cleanup
     await repo1.stop()
