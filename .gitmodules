@@ -13,3 +13,9 @@
 [submodule "reference/automerge-codemirror"]
 	path = reference/automerge-codemirror
 	url = https://github.com/automerge/automerge-codemirror
+[submodule "reference/autosurgeon"]
+	path = reference/autosurgeon
+	url = https://github.com/automerge/autosurgeon.git
+[submodule "reference/automerge-repo"]
+	path = reference/automerge-repo
+	url = https://github.com/automerge/automerge-repo.git
