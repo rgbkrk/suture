@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::exceptions::{PyRuntimeError, PyValueError};
+use pyo3::exceptions::{PyRuntimeError, PyValueError, PyStopIteration, PyStopAsyncIteration};
 use pyo3_async_runtimes::tokio::future_into_py;
 use samod::DocumentId;
 use std::sync::Arc;
@@ -540,40 +540,24 @@ impl DocHandle {
         })
     }
 
-    /// Receive the next ephemeral broadcast message from other peers.
+    /// Get a stream of ephemeral broadcast messages from other peers.
     ///
-    /// Waits for and returns the next message broadcast by other peers
-    /// who have this document open. This is the receiving counterpart to the
-    /// broadcast() method.
+    /// Returns a stream that implements both async and sync iteration protocols.
+    /// This allows you to use pythonic iteration patterns to receive messages.
     ///
     /// The messages are ephemeral (not persisted to the document) and delivered
     /// as binary data. For CBOR-encoded messages, use cbor2.loads() to decode.
     ///
-    /// This method can be called repeatedly to receive messages one at a time.
-    ///
     /// Returns:
-    ///     Coroutine[Optional[bytes]]: The next broadcast message, or None if stream ended
+    ///     EphemeraStream: An iterator/async iterator for receiving messages
     ///
     /// Example:
     ///     >>> import cbor2
-    ///     >>> while True:
-    ///     >>>     message = await doc.recv_ephemera()
-    ///     >>>     if message is None:
-    ///     >>>         break
+    ///     >>> async for message in doc.ephemera():
     ///     >>>     data = cbor2.loads(message)
     ///     >>>     print(f"Received: {data}")
-    fn recv_ephemera<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        let handle = self.inner.clone();
-
-        future_into_py(py, async move {
-            let handle_guard = handle.lock().await;
-            let mut stream = handle_guard.ephemera();
-
-            match stream.next().await {
-                Some(message) => Ok(Some(message)),
-                None => Ok(None),
-            }
-        })
+    fn ephemera(&self) -> PyResult<EphemeraStream> {
+        Ok(EphemeraStream::new(self.inner.clone()))
     }
 
 }
@@ -768,6 +752,74 @@ impl Text {
     }
 }
 
+
+/// A stream of ephemeral broadcast messages from other peers.
+///
+/// This stream implements both async and sync iteration protocols,
+/// allowing you to consume messages using either `async for` or `for` loops.
+///
+/// Example:
+///     >>> async for message in doc.ephemera():
+///     >>>     data = cbor2.loads(message)
+///     >>>     print(f"Received: {data}")
+#[pyclass(name = "EphemeraStream", frozen)]
+struct EphemeraStream {
+    handle: Arc<AsyncMutex<samod::DocHandle>>,
+}
+
+impl EphemeraStream {
+    fn new(handle: Arc<AsyncMutex<samod::DocHandle>>) -> Self {
+        Self { handle }
+    }
+}
+
+async fn next_ephemera(
+    handle: Arc<AsyncMutex<samod::DocHandle>>,
+    sync: bool,
+) -> PyResult<Vec<u8>> {
+    let handle_guard = handle.lock().await;
+    let mut stream = handle_guard.ephemera();
+
+    match stream.next().await {
+        Some(message) => Ok(message),
+        None => {
+            // Stream exhausted - raise appropriate exception
+            if sync {
+                Err(PyStopIteration::new_err("stream exhausted"))
+            } else {
+                Err(PyStopAsyncIteration::new_err("stream exhausted"))
+            }
+        }
+    }
+}
+
+#[pymethods]
+impl EphemeraStream {
+    fn __aiter__(slf: Py<Self>) -> Py<Self> {
+        slf
+    }
+
+    fn __iter__(slf: Py<Self>) -> Py<Self> {
+        slf
+    }
+
+    fn __anext__<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let handle = self.handle.clone();
+        future_into_py(py, next_ephemera(handle, false))
+    }
+
+    fn __next__<'py>(&'py self, py: Python<'py>) -> PyResult<Vec<u8>> {
+        // For sync iteration, we need to block on the async operation
+        // We'll use tokio's block_in_place to avoid blocking the runtime
+        let handle = self.handle.clone();
+        py.detach(|| {
+            tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(next_ephemera(handle, true))
+            })
+        })
+    }
+}
+
 /// Spork
 ///
 /// Library for building local-first collaborative applications using
@@ -776,7 +828,6 @@ impl Text {
 /// Key concepts:
 ///     - **Repo**: Manages documents, storage, and networking
 ///     - **DocHandle**: A handle to a specific document for reading/writing
-///     - **AutomergeUrl**: Unique identifier for documents (automerge:...)
 ///
 /// See also: https://automerge.org/docs/
 #[pymodule(name = "spork")]
@@ -784,5 +835,6 @@ fn spork_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Repo>()?;
     m.add_class::<DocHandle>()?;
     m.add_class::<Text>()?;
+    m.add_class::<EphemeraStream>()?;
     Ok(())
 }
