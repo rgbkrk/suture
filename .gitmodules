@@ -19,3 +19,6 @@
 [submodule "reference/automerge-repo"]
 	path = reference/automerge-repo
 	url = https://github.com/automerge/automerge-repo.git
+[submodule "reference/automerge-py"]
+	path = reference/automerge-py
+	url = https://github.com/automerge/automerge-py
